@@ -49,10 +49,6 @@ footer{font-size:12px;color:var(--mut);text-align:center;padding:12px;border-top
     <div class="grid" id="reasons"></div>
 
     <div>
-      <label for="digits">Last 4 digits of the number plate</label>
-      <input id="digits" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="e.g. 1234">
-    </div>
-    <div>
       <label for="msg">Message <span class="hint">(optional)</span></label>
       <textarea id="msg" rows="3" maxlength="300" placeholder="e.g. I'm in the white car behind you"></textarea>
     </div>
@@ -82,7 +78,6 @@ footer{font-size:12px;color:var(--mut);text-align:center;padding:12px;border-top
 /* ====== EDIT THESE ====== */
 const CONFIG = {
   plate: "BR 01 KM 5873",          // shown on the page
-  last4: "5873",                   // last 4 digits of your plate (anti-prank check)
   topic: "car-35luj3cnlicc99",     // your secret ntfy topic: subscribe to this in the ntfy app
   server: "https://ntfy.sh",       // change only if ntfy.sh ever stops working for you
   cooldownSec: 60                  // one alert per minute from the same phone
@@ -117,12 +112,10 @@ function markSent(){ try{ localStorage.setItem('tagSent', Date.now()) }catch(e){
 
 $('send').addEventListener('click', async ()=>{
   const err = $('err'); err.textContent = '';
-  const digits = $('digits').value.trim();
   const msg = $('msg').value.trim();
   let phone = $('phone').value.replace(/[\s-]/g,'').replace(/^(\+91|0)/,'');
 
   if(!picked){ err.textContent = 'Please choose what the issue is.'; return; }
-  if(digits !== CONFIG.last4){ err.textContent = 'Those digits don’t match this car’s number plate.'; return; }
   if(phone && !/^[6-9]\d{9}$/.test(phone)){ err.textContent = 'Please enter a valid 10-digit mobile number, or leave it empty.'; return; }
   const wait = CONFIG.cooldownSec*1000 - (Date.now()-lastSent());
   if(wait > 0){ err.textContent = `Alert already sent. You can send another in ${Math.ceil(wait/1000)}s.`; return; }
