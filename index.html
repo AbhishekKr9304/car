@@ -54,7 +54,7 @@ footer{font-size:12px;color:var(--mut);text-align:center;padding:12px;border-top
     </div>
     <div>
       <label for="phone">Your mobile number <span class="hint">(optional, so the owner can call you back)</span></label>
-      <input id="phone" inputmode="tel" maxlength="13" autocomplete="tel" placeholder="10-digit number">
+      <input id="phone" inputmode="tel" pattern="[0-9]{10}" autocomplete="tel" placeholder="10-digit number">
     </div>
 
     <p class="err" id="err" role="alert"></p>
@@ -70,7 +70,7 @@ footer{font-size:12px;color:var(--mut);text-align:center;padding:12px;border-top
     </div>
     <div id="cb">
       <label for="cbPhone">Want the owner to call you? <span class="hint">(optional)</span></label>
-      <input id="cbPhone" inputmode="tel" maxlength="13" autocomplete="tel" placeholder="Your 10-digit mobile number">
+      <input id="cbPhone" inputmode="tel" pattern="[0-9]{10}" autocomplete="tel" placeholder="Your 10-digit mobile number">
       <p class="err" id="cbErr" role="alert"></p>
       <button class="send" id="cbSend" style="width:100%">Share my number</button>
     </div>
@@ -161,6 +161,8 @@ $('send').addEventListener('click', async ()=>{
     btn.disabled = false; btn.textContent = 'Alert the owner';
   }
 });
+
+['phone','cbPhone'].forEach(id=>$(id).addEventListener('input',ev=>{let d=ev.target.value.replace(/\D/g,'');if(d.length>10&&d.startsWith('91'))d=d.slice(2);else if(d.length>10&&d.startsWith('0'))d=d.slice(1);ev.target.value=d.slice(0,10)}));
 
 $('cbSend').addEventListener('click', async ()=>{
   const e = $('cbErr'); e.textContent = '';
