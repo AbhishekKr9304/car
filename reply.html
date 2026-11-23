@@ -26,6 +26,8 @@ header p{margin:2px 0 0;font-size:13px}
 input{flex:1;min-width:0;font:16px inherit;font-family:inherit;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:transparent;color:var(--ink)}
 .send{min-height:48px;padding:0 18px;border:0;border-radius:12px;background:var(--ink);color:var(--card);font-size:16px;font-weight:700;cursor:pointer}
 .send:disabled{opacity:.5}
+.safe{width:100%;min-height:48px;border:0;border-radius:12px;background:#1f9d55;color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.safe:disabled{opacity:.6}
 .err{color:var(--red);font-size:13px;margin:0;padding:0 16px;min-height:0}
 button:focus-visible,input:focus-visible{outline:3px solid var(--y);outline-offset:2px}
 </style>
@@ -37,6 +39,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--y);outline-offs
     <p>They can't see your number. Messages last about 12 hours.</p>
   </header>
   <div class="msgs" id="msgs" aria-live="polite"><p class="note" id="note">Connecting…</p></div>
+  <div style="padding:8px 16px 0"><button class="safe" id="safe">✓ Car is safe, all sorted</button></div>
   <div class="quick" id="quick"></div>
   <p class="err" id="err" role="alert"></p>
   <div class="row">
@@ -53,7 +56,7 @@ const id = location.hash.slice(1).replace(/[^a-z0-9]/gi, '');
 
 if(!id){
   $('note').textContent = 'Open this page from the Reply button in your ntfy alert.';
-  $('send').disabled = true; $('inp').disabled = true;
+  $('send').disabled = true; $('inp').disabled = true; $('safe').disabled = true;
 } else {
   const topic = 'carchat-' + id;
   const bubble = m => {
@@ -70,11 +73,13 @@ if(!id){
   es.onopen = () => { const n = $('note'); if(n) n.textContent = 'No messages yet.'; };
   es.onmessage = ev => { try{ const m = JSON.parse(ev.data); if(m.event === 'message') bubble(m); }catch(x){} };
 
-  const send = async text => {
+  const send = async (text, tags) => {
     text = (text ?? $('inp').value).trim(); if(!text) return;
     $('send').disabled = true; $('err').textContent = '';
     try{
-      const r = await fetch(SERVER + '/', {method:'POST', body: JSON.stringify({topic, title:'owner', message:text})});
+      const body = {topic, title:'owner', message:text};
+      if(tags) body.tags = tags;
+      const r = await fetch(SERVER + '/', {method:'POST', body: JSON.stringify(body)});
       if(!r.ok) throw new Error(r.status);
       $('inp').value = '';
     }catch(x){ $('err').textContent = 'Not sent. Check your internet and try again.'; }
@@ -83,6 +88,10 @@ if(!id){
   $('quick').innerHTML = QUICK.map((q,i) => `<button data-i="${i}">${q}</button>`).join('');
   $('quick').addEventListener('click', e => { const b = e.target.closest('button'); if(b) send(QUICK[b.dataset.i]); });
   $('send').addEventListener('click', () => send());
+  $('safe').addEventListener('click', async () => {
+    await send('✓ All sorted, the situation is handled. Thank you for letting me know! / सब ठीक है, समस्या सुलझ गई है। बताने के लिए धन्यवाद!', ['resolved']);
+    $('safe').textContent = '✓ Sent: car is safe';
+  });
   $('inp').addEventListener('keydown', e => { if(e.key === 'Enter') send(); });
 }
 }
