@@ -80,7 +80,8 @@ const CONFIG = {
   plate: "BR 01 KM 5873",          // shown on the page
   topic: "car-35luj3cnlicc99",     // your secret ntfy topic: subscribe to this in the ntfy app
   server: "https://ntfy.sh",       // change only if ntfy.sh ever stops working for you
-  cooldownSec: 60                  // one alert per minute from the same phone
+  cooldownSec: 60,                 // one alert per minute from the same phone
+  ringEveryMin: 60                 // owner's phone rings at most once per hour per scanner (emergencies always ring)
 };
 /* ======================== */
 
@@ -109,6 +110,8 @@ $('reasons').addEventListener('click', ev=>{
 
 function lastSent(){ try{ return +localStorage.getItem('tagSent')||0 }catch(e){ return 0 } }
 function markSent(){ try{ localStorage.setItem('tagSent', Date.now()) }catch(e){} }
+function lastRang(){ try{ return +localStorage.getItem('tagRang')||0 }catch(e){ return 0 } }
+function markRang(){ try{ localStorage.setItem('tagRang', Date.now()) }catch(e){} }
 
 $('send').addEventListener('click', async ()=>{
   const err = $('err'); err.textContent = '';
@@ -125,9 +128,11 @@ $('send').addEventListener('click', async ()=>{
   lines.push(phone ? `Scanner's number: +91 ${phone}` : 'Scanner did not share a number.');
   lines.push(`Sent ${new Date().toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})}`);
 
+  // "New alert" titles make the owner's phone ring (via iPhone automation); "Follow-up" titles don't
+  const ring = picked.sos || (Date.now() - lastRang()) > CONFIG.ringEveryMin*60000;
   const body = {
     topic: CONFIG.topic,
-    title: (picked.sos ? 'URGENT: ' : '') + picked.t + ' · ' + CONFIG.plate,
+    title: (ring ? 'New alert · ' : 'Follow-up · ') + (picked.sos ? 'URGENT: ' : '') + picked.t + ' · ' + CONFIG.plate,
     message: lines.join('\n'),
     tags: [picked.e],
     priority: picked.p
@@ -139,6 +144,7 @@ $('send').addEventListener('click', async ()=>{
     const r = await fetch(CONFIG.server + '/', {method:'POST', body: JSON.stringify(body)});
     if(!r.ok) throw new Error(r.status);
     markSent();
+    if(ring) markRang();
     $('form').hidden = true; $('done').hidden = false;
     if(picked.sos) $('doneText').textContent = 'The owner has been alerted. If anyone is hurt or in danger, call 112 now.';
   }catch(e){
