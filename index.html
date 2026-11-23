@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Contact car owner</title>
+<style>
+:root{--y:#ffcc00;--ink:#16181b;--mut:#5d5f63;--line:#dedbd2;--bg:#f6f4ee;--card:#fff;--red:#e5372d;--grn:#1f9d55}
+@media(prefers-color-scheme:dark){:root{--ink:#f1efe8;--mut:#a4a6ab;--line:#3a3d42;--bg:#16181b;--card:#202327}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:460px;margin:0 auto;min-height:100vh;background:var(--card);display:flex;flex-direction:column}
+header{background:var(--y);color:#1b1a12;padding:22px 20px 18px}
+header h1{margin:0;font-size:22px;line-height:1.2}
+.plate{display:inline-block;margin-top:12px;background:#fff;color:#111;border:2px solid #111;border-radius:6px;padding:2px 12px;font-weight:800;font-size:20px;letter-spacing:.06em}
+header p{margin:8px 0 0;font-size:14px}
+main{padding:18px 20px 24px;display:flex;flex-direction:column;gap:14px;flex:1}
+h2{font-size:17px;margin:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chip{min-height:52px;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:12px;font-size:14px;padding:8px 10px;text-align:left;cursor:pointer}
+.chip[aria-pressed=true]{border-color:var(--ink);background:rgba(255,204,0,.25)}
+.chip.sos{border-color:var(--red);color:var(--red)}
+.chip.sos[aria-pressed=true]{background:rgba(229,55,45,.15)}
+label{font-size:14px;font-weight:600;display:block;margin-bottom:4px}
+.hint{font-weight:400;color:var(--mut)}
+input,textarea{width:100%;font:16px inherit;font-family:inherit;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:transparent;color:var(--ink)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+.send{min-height:54px;border:0;border-radius:14px;background:var(--ink);color:var(--card);font-size:17px;font-weight:700;cursor:pointer}
+.send:disabled{opacity:.5}
+.err{color:var(--red);font-size:14px;min-height:20px;margin:0}
+.ok{text-align:center;padding:30px 10px}
+.ok .tick{width:84px;height:84px;border-radius:50%;background:var(--grn);color:#fff;font-size:44px;display:grid;place-items:center;margin:0 auto 14px}
+.small{font-size:13px;color:var(--mut)}
+footer{font-size:12px;color:var(--mut);text-align:center;padding:12px;border-top:1px solid var(--line)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Need the owner of this car?</h1>
+    <div class="plate" id="plate"></div>
+    <p>Send an alert. The owner's phone number stays private.</p>
+  </header>
+
+  <main id="form">
+    <h2>What's the issue?</h2>
+    <div class="grid" id="reasons"></div>
+
+    <div>
+      <label for="digits">Last 4 digits of the number plate</label>
+      <input id="digits" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="e.g. 1234">
+    </div>
+    <div>
+      <label for="msg">Message <span class="hint">(optional)</span></label>
+      <textarea id="msg" rows="3" maxlength="300" placeholder="e.g. I'm in the white car behind you"></textarea>
+    </div>
+    <div>
+      <label for="phone">Your mobile number <span class="hint">(optional, so the owner can call you back)</span></label>
+      <input id="phone" inputmode="tel" maxlength="13" autocomplete="tel" placeholder="10-digit number">
+    </div>
+
+    <p class="err" id="err" role="alert"></p>
+    <button class="send" id="send">Alert the owner</button>
+    <p class="small">In an emergency where someone may be hurt, call <strong>112</strong> first.</p>
+  </main>
+
+  <main id="done" hidden>
+    <div class="ok">
+      <div class="tick">✓</div>
+      <h2 id="doneTitle">Owner alerted</h2>
+      <p class="small" id="doneText">They've got your message on their phone. Thanks for letting them know.</p>
+    </div>
+  </main>
+
+  <footer>Private contact tag · No app or sign-up needed</footer>
+</div>
+
+<script>
+{
+/* ====== EDIT THESE ====== */
+const CONFIG = {
+  plate: "BR 01 KM 5873",          // shown on the page
+  last4: "5873",                   // last 4 digits of your plate (anti-prank check)
+  topic: "car-35luj3cnlicc99",     // your secret ntfy topic: subscribe to this in the ntfy app
+  server: "https://ntfy.sh",       // change only if ntfy.sh ever stops working for you
+  cooldownSec: 60                  // one alert per minute from the same phone
+};
+/* ======================== */
+
+const REASONS = [
+  {t:"Blocking my car / gate", e:"car", p:4},
+  {t:"Headlights are on",      e:"bulb", p:3},
+  {t:"Window or door open",    e:"window", p:3},
+  {t:"Getting towed / no parking", e:"warning", p:5},
+  {t:"Alarm is ringing",       e:"loudspeaker", p:4},
+  {t:"Minor damage / scratch", e:"wrench", p:4},
+  {t:"Something else",         e:"speech_balloon", p:3},
+  {t:"Emergency / accident",   e:"rotating_light", p:5, sos:true}
+];
+
+const $ = id => document.getElementById(id);
+$('plate').textContent = CONFIG.plate;
+let picked = null;
+
+$('reasons').innerHTML = REASONS.map((r,i)=>
+  `<button class="chip${r.sos?' sos':''}" data-i="${i}" aria-pressed="false">${r.t}</button>`).join('');
+$('reasons').addEventListener('click', ev=>{
+  const b = ev.target.closest('.chip'); if(!b) return;
+  picked = REASONS[b.dataset.i];
+  document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed', c===b));
+});
+
+function lastSent(){ try{ return +localStorage.getItem('tagSent')||0 }catch(e){ return 0 } }
+function markSent(){ try{ localStorage.setItem('tagSent', Date.now()) }catch(e){} }
+
+$('send').addEventListener('click', async ()=>{
+  const err = $('err'); err.textContent = '';
+  const digits = $('digits').value.trim();
+  const msg = $('msg').value.trim();
+  let phone = $('phone').value.replace(/[\s-]/g,'').replace(/^(\+91|0)/,'');
+
+  if(!picked){ err.textContent = 'Please choose what the issue is.'; return; }
+  if(digits !== CONFIG.last4){ err.textContent = 'Those digits don’t match this car’s number plate.'; return; }
+  if(phone && !/^[6-9]\d{9}$/.test(phone)){ err.textContent = 'Please enter a valid 10-digit mobile number, or leave it empty.'; return; }
+  const wait = CONFIG.cooldownSec*1000 - (Date.now()-lastSent());
+  if(wait > 0){ err.textContent = `Alert already sent. You can send another in ${Math.ceil(wait/1000)}s.`; return; }
+
+  const lines = [];
+  if(msg) lines.push(`"${msg}"`);
+  lines.push(phone ? `Scanner's number: +91 ${phone}` : 'Scanner did not share a number.');
+  lines.push(`Sent ${new Date().toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})}`);
+
+  const body = {
+    topic: CONFIG.topic,
+    title: (picked.sos ? 'URGENT: ' : '') + picked.t + ' · ' + CONFIG.plate,
+    message: lines.join('\n'),
+    tags: [picked.e],
+    priority: picked.p
+  };
+  if(phone) body.actions = [{action:'view', label:'Call back', url:'tel:+91'+phone, clear:true}];
+
+  const btn = $('send'); btn.disabled = true; btn.textContent = 'Sending…';
+  try{
+    const r = await fetch(CONFIG.server + '/', {method:'POST', body: JSON.stringify(body)});
+    if(!r.ok) throw new Error(r.status);
+    markSent();
+    $('form').hidden = true; $('done').hidden = false;
+    if(picked.sos) $('doneText').textContent = 'The owner has been alerted. If anyone is hurt or in danger, call 112 now.';
+  }catch(e){
+    err.textContent = 'Couldn’t send right now. Check your internet and try again.';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Alert the owner';
+  }
+});
+}
+</script>
+</body>
+</html>
