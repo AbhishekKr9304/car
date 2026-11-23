@@ -68,6 +68,13 @@ footer{font-size:12px;color:var(--mut);text-align:center;padding:12px;border-top
       <h2 id="doneTitle">Owner alerted</h2>
       <p class="small" id="doneText">They've got your message on their phone. Thanks for letting them know.</p>
     </div>
+    <div id="cb">
+      <label for="cbPhone">Want the owner to call you? <span class="hint">(optional)</span></label>
+      <input id="cbPhone" inputmode="tel" maxlength="13" autocomplete="tel" placeholder="Your 10-digit mobile number">
+      <p class="err" id="cbErr" role="alert"></p>
+      <button class="send" id="cbSend" style="width:100%">Share my number</button>
+    </div>
+    <p class="small" id="cbDone" hidden style="text-align:center">✓ Number sent. The owner can call you back.</p>
   </main>
 
   <footer>Private contact tag · No app or sign-up needed</footer>
@@ -146,11 +153,33 @@ $('send').addEventListener('click', async ()=>{
     markSent();
     if(ring) markRang();
     $('form').hidden = true; $('done').hidden = false;
+    if(phone) $('cb').hidden = true;
     if(picked.sos) $('doneText').textContent = 'The owner has been alerted. If anyone is hurt or in danger, call 112 now.';
   }catch(e){
     err.textContent = 'Couldn’t send right now. Check your internet and try again.';
   }finally{
     btn.disabled = false; btn.textContent = 'Alert the owner';
+  }
+});
+
+$('cbSend').addEventListener('click', async ()=>{
+  const e = $('cbErr'); e.textContent = '';
+  const p = $('cbPhone').value.replace(/[\s-]/g,'').replace(/^(\+91|0)/,'');
+  if(!/^[6-9]\d{9}$/.test(p)){ e.textContent = 'Please enter a valid 10-digit mobile number.'; return; }
+  const b = $('cbSend'); b.disabled = true; b.textContent = 'Sending…';
+  try{
+    const r = await fetch(CONFIG.server + '/', {method:'POST', body: JSON.stringify({
+      topic: CONFIG.topic,
+      title: 'Call back request · ' + CONFIG.plate,
+      message: `Scanner's number: +91 ${p}` + (picked ? `\nAbout: ${picked.t}` : ''),
+      tags: ['telephone_receiver'], priority: 4,
+      actions: [{action:'view', label:'Call back', url:'tel:+91'+p, clear:true}]
+    })});
+    if(!r.ok) throw new Error(r.status);
+    $('cb').hidden = true; $('cbDone').hidden = false;
+  }catch(x){
+    e.textContent = 'Couldn’t send right now. Please try again.';
+    b.disabled = false; b.textContent = 'Share my number';
   }
 });
 }
