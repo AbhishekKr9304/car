@@ -105,8 +105,8 @@ const CONFIG = {
   topic: "car-35luj3cnlicc99",     // your secret ntfy topic: subscribe to this in the ntfy app
   server: "https://ntfy.sh",       // change only if ntfy.sh ever stops working for you
   site: "https://abhishekkr9304.github.io/car/",   // where reply.html lives
-  cooldownSec: 60,                 // one alert per minute from the same phone
-  ringEveryMin: 60                 // owner's phone rings at most once per hour per scanner (emergencies always ring)
+  cooldownSec: 5,                  // TESTING (normal: 60) - min seconds between alerts from the same phone
+  ringEveryMin: 10/60              // TESTING = 10 seconds (normal: 60) - owner's phone rings at most once per this many minutes per scanner (emergencies always ring)
 };
 /* ======================== */
 
